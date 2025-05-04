@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Sohbet | PromptlyAI{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-6 bg-white p-4 rounded shadow">
+    <h2 class="text-xl font-bold mb-4">🧠 Yapay Zekâ Asistanı</h2>
+
+    <!-- Sektör örnekleri -->
+    <div class="mb-6">
+        <form id="sektor-form" class="flex gap-2 mb-2">
+            <input type="text" id="sektor-input" placeholder="Sektör (örn: yazılımcı)" class="flex-1 border px-3 py-2 rounded" />
+            <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">📌 Örnekleri Getir</button>
+        </form>
+        <div class="flex flex-wrap gap-2 mb-2" id="soru-butons"></div>
+        <div class="grid grid-cols-2 gap-2 text-sm" id="konu-listesi"></div>
+    </div>
+
+    <!-- Geçmiş konuşmalar -->
+    <div class="h-96 overflow-y-auto space-y-4 mb-4" id="chat-box">
+        {% for msg, res in history %}
+        <div>
+            <div class="bg-blue-100 p-2 rounded mb-1"><strong>Sen:</strong> {{ msg }}</div>
+            <div class="bg-gray-100 p-2 rounded"><strong>Bot:</strong> {{ res }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Yeni mesaj -->
+    <form action="/chat" method="post" class="flex gap-2 mb-2">
+        <input type="text" name="message" id="message-input" placeholder="Mesajınızı yazın..." required class="flex-1 border rounded px-3 py-2" />
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Gönder</button>
+    </form>
+    <button id="btn-improve" class="bg-green-600 text-white w-full py-2 rounded hover:bg-green-700 mb-2">⚡ Promptu İyileştir</button>
+
+    <!-- Puanlama ve öneriler -->
+    <div id="puanlama-sonucu" class="text-sm text-gray-700"></div>
+    <div id="yeni-oneriler" class="mt-4 grid grid-cols-1 gap-2"></div>
+</div>
+
+<script>
+  document.getElementById('sektor-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sektor = document.getElementById('sektor-input').value;
+    if (!sektor) return;
+    const res = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sektor)}`);
+    const data = await res.json();
+
+    const btns = document.getElementById('soru-butons');
+    btns.innerHTML = '';
+    data.sorular.forEach(soru => {
+      const btn = document.createElement('button');
+      btn.className = 'bg-gray-200 px-3 py-1 rounded hover:bg-gray-300';
+      btn.textContent = soru;
+      btn.onclick = () => {
+        document.getElementById('message-input').value = soru;
+        return false;
+      };
+      btns.appendChild(btn);
+    });
+
+    const konular = document.getElementById('konu-listesi');
+    konular.innerHTML = '';
+    data.konular.forEach(konu => {
+      const div = document.createElement('div');
+      div.className = 'bg-yellow-100 p-2 rounded';
+      div.textContent = konu;
+      konular.appendChild(div);
+    });
+  });
+
+  document.getElementById('btn-improve').addEventListener('click', async () => {
+    const mesaj = document.getElementById('message-input').value;
+    if (!mesaj) return;
+
+    const res = await fetch('/prompt-iyilestir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ mesaj })
+    });
+    const data = await res.json();
+    document.getElementById('message-input').value = data.yeni;
+
+    const puanDiv = document.getElementById('puanlama-sonucu');
+    puanDiv.innerHTML = `
+      <div class="mt-2 p-2 bg-blue-50 border rounded">
+        <strong>Puan:</strong> ${data.puan}/100<br>
+        <strong>Öneri:</strong> ${data.oneri}
+      </div>
+    `;
+
+    const yeniDiv = document.getElementById('yeni-oneriler');
+    yeniDiv.innerHTML = '';
+    data.yeni_oneriler.forEach(soru => {
+      const btn = document.createElement('button');
+      btn.className = 'bg-teal-100 text-sm px-3 py-1 rounded hover:bg-teal-200';
+      btn.textContent = soru;
+      btn.onclick = () => {
+        document.getElementById('message-input').value = soru;
+        return false;
+      };
+      yeniDiv.appendChild(btn);
+    });
+  });
+</script>
+{% endblock %}

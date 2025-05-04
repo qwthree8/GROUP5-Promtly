@@ -1,0 +1,27 @@
+{# templates/login.html #}
+{% extends "base.html" %}
+
+{% block title %}Giriş Yap | PromptlyAI{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-10 bg-white p-6 rounded shadow">
+    <h2 class="text-2xl font-bold mb-4">Giriş Yap</h2>
+    {% if error %}
+        <div class="text-red-600 mb-4">{{ error }}</div>
+    {% endif %}
+    <form action="/login" method="post" class="space-y-4">
+        <div>
+            <label for="username" class="block text-sm font-medium">Kullanıcı Adı</label>
+            <input type="text" name="username" id="username" required class="w-full border rounded px-3 py-2" />
+        </div>
+        <div>
+            <label for="password" class="block text-sm font-medium">Şifre</label>
+            <input type="password" name="password" id="password" required class="w-full border rounded px-3 py-2" />
+        </div>
+        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Giriş Yap</button>
+    </form>
+    <p class="mt-4 text-sm text-center">
+        Hesabınız yok mu? <a href="/register" class="text-blue-600 hover:underline">Kayıt Ol</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+jinja2
+python-dotenv
+sqlalchemy
+passlib[bcrypt]
+python-jose[cryptography]
+google-generativeai
