@@ -7,7 +7,7 @@
 
   <!-- Başlık -->
   <header class="bg-white shadow py-6">
-    <h2 class="text-3xl font-extrabold text-center">Yapay Zekâ Asistanı</h2>
+    <h2 class="text-3xl font-extrabold text-center">PromptlyAI Sohbet</h2>
   </header>
 
   <!-- Sektör & Örnek / Konu Başlıkları -->
@@ -22,24 +22,18 @@
       <button type="submit" class="btn-primary">Örnekleri Getir</button>
     </form>
 
-    <!-- Örnek Soru Butonları -->
+    <!-- Örnek / Yeni Öneri Kartları -->
     <div id="soru-butons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"></div>
 
     <!-- Sık Sorulanlar -->
     <p class="text-lg font-semibold mb-4">Sık Sorulanlar</p>
     <div id="konu-listesi" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
       {% if initialTopics %}
-        {% set colors = [
-          'bg-[var(--topic-color-1)] hover:bg-[var(--topic-hover-1)]',
-          'bg-[var(--topic-color-2)] hover:bg-[var(--topic-hover-2)]',
-          'bg-[var(--topic-color-3)] hover:bg-[var(--topic-hover-3)]',
-          'bg-[var(--topic-color-4)] hover:bg-[var(--topic-hover-4)]'
-        ] %}
         {% for kt in initialTopics %}
           <button
             type="button"
-            onclick="loadTopic('{{ kt }}', {{ loop.index0 }})"
-            class="w-full px-4 py-3 rounded-lg text-left font-bold text-white transition {{ colors[loop.index0] }}"
+            onclick='loadTopic("{{ kt }}", {{ loop.index0 }})'
+            class="w-full px-4 py-3 rounded-lg text-left font-bold transition topic-btn-{{ loop.index0 + 1 }}"
           >
             {{ kt }}
           </button>
@@ -58,16 +52,15 @@
   >
     {% if history %}
       {% for msg, res in history %}
-        <div class="mb-4">
-          <!-- Kullanıcı mesajı -->
-          <div class="bg-blue-100 p-3 rounded-lg flex items-start space-x-2">
-            <span class="font-bold text-blue-800">Sen:</span>
-            <span class="font-normal text-gray-900">{{ msg }}</span>
-          </div>
-          <!-- Bot cevabı -->
-          <div class="bg-white p-3 rounded-lg shadow-sm mt-1 whitespace-pre-line leading-relaxed flex items-start space-x-2">
-            <span class="font-bold text-green-800">Bot:</span>
-            <div class="flex-1 font-normal text-gray-800">{{ res }}</div>
+        <!-- Kullanıcı mesajı -->
+        <div class="chat-message message-user">
+          <div class="bubble">{{ msg }}</div>
+        </div>
+        <!-- Bot mesajı -->
+        <div class="chat-message message-bot">
+          <div class="bubble">
+            <div class="bot-title"><span class="emoji">🤖</span> Yanıt</div>
+            <div class="bot-body">{{ res }}</div>
           </div>
         </div>
       {% endfor %}
@@ -91,7 +84,8 @@
       </button>
     </form>
 
-    <!-- Otomatik submit etmeyen buton -->
+    <div id="chat-error" class="mt-2"></div>
+
     <button
       id="btn-improve"
       type="button"
@@ -100,10 +94,9 @@
       ⚡ Promptu İyileştir
     </button>
 
-    <div id="puanlama-sonucu" class="text-gray-800 text-sm mb-2"></div>
-    <div id="yeni-oneriler" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"></div>
+    <!-- PUAN ve ÖNERİ burada gösterilecek -->
+    <div id="puanlama-sonucu" class="mt-2"></div>
 
-    <!-- Küçük, sade Tüm Mesajları Sil -->
     <div class="text-right">
       <form method="post" action="/delete-all-chats">
         <button type="submit" class="text-sm text-red-600 hover:underline">
@@ -114,114 +107,145 @@
   </section>
 </div>
 
+
+
 <script>
   const sektorInput = document.getElementById('sektor-input');
   const msgInput    = document.getElementById('message-input');
   const chatBox     = document.getElementById('chat-box');
+  const soruButons  = document.getElementById('soru-butons');
   const btnImprove  = document.getElementById('btn-improve');
-  const topicColors = [
-    ['bg-[var(--topic-color-1)]','hover:bg-[var(--topic-hover-1)]'],
-    ['bg-[var(--topic-color-2)]','hover:bg-[var(--topic-hover-2)]'],
-    ['bg-[var(--topic-color-3)]','hover:bg-[var(--topic-hover-3)]'],
-    ['bg-[var(--topic-color-4)]','hover:bg-[var(--topic-hover-4)]']
-  ];
 
   function scrollBottom() {
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
   }
-  function selectQuestion(q) {
-    msgInput.value = q;
-    msgInput.focus();
+  function clearErrors() {
+    document.getElementById('chat-error').innerHTML = '';
+    document.getElementById('puanlama-sonucu').innerHTML = '';
   }
-  async function loadTopic(topic, idx) {
-    const { sorular } = await fetch(`/topic-ornekleri?topic=${encodeURIComponent(topic)}`)
-                              .then(r => r.json());
-    renderQuestions(sorular, idx);
-  }
-  function renderQuestions(list, idx = null) {
-    const cont = document.getElementById('soru-butons');
-    cont.innerHTML = '';
-    list.slice(0,6).forEach(q => {
-      let cls = 'w-full px-4 py-3 rounded-lg font-bold transition ';
-      if (idx !== null) {
-        cls += topicColors[idx].join(' ') + ' text-white';
-      } else {
-        cls += 'bg-gray-200 hover:bg-gray-300 text-black font-normal';
-      }
+
+  function updateSuggestionCards(suggestions) {
+    soruButons.innerHTML = '';
+    suggestions.slice(0,6).forEach(text => {
       const btn = document.createElement('button');
-      btn.className   = cls;
-      btn.textContent = q;
-      btn.onclick     = () => selectQuestion(q);
-      cont.appendChild(btn);
+      btn.className = 'w-full px-4 py-3 rounded-lg font-bold bg-gray-200 hover:bg-gray-300 text-black';
+      btn.textContent = text;
+      btn.onclick = () => { msgInput.value = text; msgInput.focus(); };
+      soruButons.appendChild(btn);
     });
   }
+
   document.getElementById('sektor-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const sec = sektorInput.value.trim();
-    if (!sec) return;
-    const { sorular, konular } = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sec)}`)
-                                      .then(r => r.json());
-    renderQuestions(sorular, null);
+    e.preventDefault(); clearErrors();
+    const sec = sektorInput.value.trim(); if (!sec) return;
+    const { sorular, konular } = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sec)}`).then(r=>r.json());
+    updateSuggestionCards(sorular);
     const kdiv = document.getElementById('konu-listesi');
     kdiv.innerHTML = '';
-    konular.forEach((kt, i) => {
+    konular.forEach((kt,i) => {
       const btn = document.createElement('button');
-      btn.type      = 'button';
-      btn.className = `w-full px-4 py-3 rounded-lg font-bold text-white transition ${topicColors[i].join(' ')}`;
+      btn.type = 'button';
+      btn.className = `w-full px-4 py-3 rounded-lg font-bold text-white transition bg-[var(--topic-color-${i+1})] hover:bg-[var(--topic-hover-${i+1})]`;
       btn.textContent = kt;
-      btn.onclick   = () => loadTopic(kt, i);
+      btn.onclick = () => loadTopic(kt,i);
       kdiv.appendChild(btn);
     });
   });
 
   document.getElementById('chat-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const msg = msgInput.value.trim();
-    if (!msg) return;
+    e.preventDefault(); clearErrors();
+    const msg = msgInput.value.trim(); if (!msg) return;
+
     const data = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ message: msg })
     }).then(r => r.json());
 
-    // Dinamik olarak eklenen yeni mesajlar
-    chatBox.insertAdjacentHTML('beforeend', `
-      <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> ${data.message}</div>
-    `);
-    chatBox.insertAdjacentHTML('beforeend', `
-      <div class="bg-white p-3 rounded-lg shadow-sm mt-1 whitespace-pre-line leading-relaxed flex items-start space-x-2">
-        <span class="font-bold text-green-800">Bot:</span>
-        <div class="flex-1 font-normal text-gray-800">${data.response}</div>
-      </div>
-    `);
+    if (data.response.startsWith('[HATA]')) {
+      document.getElementById('chat-error').innerHTML =
+        `<div class="bg-red-100 border border-red-300 p-3 rounded-lg text-red-800 whitespace-pre-line">${data.response}</div>`;
+      return;
+    }
 
-    scrollBottom();
-    renderQuestions(data.yeni_oneriler, null);
+    // Mesaj balonları
+    chatBox.insertAdjacentHTML('beforeend', `
+      <div class="chat-message message-user">
+        <div class="bubble">${data.message}</div>
+      </div>`);
+    chatBox.insertAdjacentHTML('beforeend', `
+      <div class="chat-message message-bot">
+        <div class="bubble">
+          <div class="bot-title"><span class="emoji">🤖</span> Yanıt</div>
+          <div class="bot-body">${data.response}</div>
+        </div>
+      </div>`);
+
+    // Yeni öneriler
+    if (Array.isArray(data.yeni_oneriler)) {
+      updateSuggestionCards(data.yeni_oneriler);
+    }
+
+    // PUAN ve ÖNERi göster
+    document.getElementById('puanlama-sonucu').innerHTML = `
+      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-900">
+        <strong>📊 Puan:</strong> ${data.score}/100<br/>
+        <strong>💡 Öneri:</strong> ${data.suggestion || '—'}
+      </div>`;
+
     msgInput.value = '';
     msgInput.focus();
+    scrollBottom();
   });
 
-  btnImprove.addEventListener('click', async e => {
-    e.preventDefault();
-    const t   = msgInput.value.trim();
-    const konu = sektorInput.value.trim() || '';
-    if (!t) return;
-    const j = await fetch('/prompt-iyilestir', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ mesaj: t, konu: konu })
-    }).then(r => r.json());
+  btnImprove.addEventListener('click', async () => {
+    clearErrors();
+    const t = msgInput.value.trim(); if (!t) return;
+    const res = await fetch('/prompt-iyilestir', {
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ mesaj: t })
+    }).then(r=>r.json());
 
-    // Sadece input’u güncelliyoruz
-    msgInput.value = j.yeni;
+    if (res.yeni.startsWith('[HATA]')) {
+      document.getElementById('puanlama-sonucu').innerHTML =
+        `<div class="bg-red-100 border border-red-300 p-3 rounded-lg text-red-800 whitespace-pre-line">${res.yeni}</div>`;
+      return;
+    }
+    msgInput.value = res.yeni;
     msgInput.focus();
-    document.getElementById('puanlama-sonucu').innerHTML = `
-      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-        <strong>Puan:</strong> ${j.puan}/100<br>
-        <strong>Öneri:</strong> ${j.oneri}
-      </div>`;
-    renderQuestions(j.yeni_oneriler, null);
   });
+
+  const topicColors = [
+  ['bg-[var(--topic-color-1)]','hover:bg-[var(--topic-hover-1)]'],
+  ['bg-[var(--topic-color-2)]','hover:bg-[var(--topic-hover-2)]'],
+  ['bg-[var(--topic-color-3)]','hover:bg-[var(--topic-hover-3)]'],
+  ['bg-[var(--topic-color-4)]','hover:bg-[var(--topic-hover-4)]']
+];
+
+function updateSuggestionCards(list, colorIdx = null) {
+  const cont = document.getElementById('soru-butons');
+  cont.innerHTML = '';
+  list.slice(0,6).forEach(text => {
+    let cls = 'w-full px-4 py-3 rounded-lg font-bold transition ';
+    if (colorIdx !== null) {
+      cls += topicColors[colorIdx].join(' ') + ' text-white';
+    } else {
+      cls += 'bg-gray-200 hover:bg-gray-300 text-black';
+    }
+    const btn = document.createElement('button');
+    btn.className   = cls;
+    btn.textContent = text;
+    btn.onclick     = () => { msgInput.value = text; msgInput.focus(); };
+    cont.appendChild(btn);
+  });
+}
+
+async function loadTopic(topic, idx) {
+  const { sorular } = await fetch(`/topic-ornekleri?topic=${encodeURIComponent(topic)}`)
+                            .then(r => r.json());
+  updateSuggestionCards(sorular, idx);
+}
 
   window.addEventListener('load', scrollBottom);
 </script>

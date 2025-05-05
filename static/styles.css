@@ -11,12 +11,23 @@
   --topic-hover-3: #4383ee;
   --topic-color-4: #35a450;
   --topic-hover-4: #35a450;
+
+  --bot-bg: #ffffff;
+  --bot-border: #d1d5db;
+  --bot-title: #111827;
+  --bot-sub: #1f2937;
+
+  --user-bg: #2563eb;
+  --user-text: #ffffff;
+  --user-border: #1e40af;
 }
 
 /* Genel ayarlar */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-color: #f7f8fa;
+  margin: 0;
+  padding: 0;
 }
 input, button, textarea {
   transition: all 0.2s ease-in-out;
@@ -62,52 +73,107 @@ button:active{ transform: scale(0.98); }
 }
 .btn-primary:hover { background-color: #17314a; }
 
-/* soru-butons: tüm metin hep görünür */
-#soru-butons button {
-  white-space: normal;
-  overflow: visible;
-}
-
-/* yeni-oneriler: hover’da açılır */
+/* Öneri kartları */
+#soru-butons button,
 #yeni-oneriler button {
-  max-height: 3.5rem;
-  white-space: nowrap;
-  overflow: hidden;
-  transition: max-height 0.3s ease, white-space 0.3s ease;
-}
-#yeni-oneriler button:hover {
-  max-height: 8rem;
   white-space: normal;
   overflow: visible;
 }
 
-/* Bot cevabı formatlaması */
-.bot-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-}
-.bot-sub {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #374151;
-  margin-left: 0.5rem;
-  margin-bottom: 0.25rem;
-}
-/* Bot cevabı başlığı: daha büyük, koyu renk */
-.bot-title {
-  font-size: 1.5rem;       /* 1.25 → 1.5rem */
-  font-weight: 800;        /* daha kalın */
-  color: #111827;          /* koyu gri/siyah */
-  margin-bottom: 0.75rem;  /* biraz daha boşluk */
+/* Mesaj balonlarının ortak stili */
+.chat-message {
+  display: flex;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+  max-width: 80%;
 }
 
-/* Bot cevabı alt başlıkları: koyu renk, kalın */
+/* Bot mesajı: soldan akar */
+.message-bot {
+  justify-content: flex-start;
+}
+.message-bot .bubble {
+  background-color: var(--bot-bg);
+  border: 1px solid var(--bot-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Kullanıcı mesajı: sağdan akar */
+.message-user {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.message-user .bubble {
+  background-color: var(--user-bg);
+  color: var(--user-text);
+  border: 1px solid var(--user-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Ok işaretleri */
+.message-bot .bubble::before {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-right: 8px solid var(--bot-bg);
+  border-bottom: 8px solid transparent;
+}
+.message-user .bubble::after {
+  content: '';
+  position: absolute;
+  top: 1rem;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-left: 8px solid var(--user-bg);
+  border-bottom: 8px solid transparent;
+}
+
+/* Bot cevabı başlığı: büyük, koyu, emoji destekli */
+.bot-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--bot-title);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+.bot-title .emoji {
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Bot cevabı alt başlıkları: vurgulu */
 .bot-sub {
-  font-size: 1.125rem;     /* 1rem → 1.125rem */
-  font-weight: 600;        /* daha belirgin */
-  color: #1f2937;          /* koyu gri */
-  margin: 0.25rem 0;       /* üst-alt boşluk */
-  padding-left: 0.5rem;    /* girinti */
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--bot-sub);
+  margin: 0.25rem 0;
+  padding-left: 0.5rem;
+}
+
+/* Bot cevabı gövde metni */
+.bot-body {
+  font-size: 1rem;
+  color: #374151;
+  white-space: pre-line;
+}
+
+/* Vurgu için <strong> */
+.bubble strong {
+  color: #dc2626;
 }

@@ -1,0 +1,44 @@
+<!-- templates/profile.html -->
+{% extends "base.html" %}
+
+{% block title %}Profil | PromptlyAI{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto mt-10 bg-white p-6 rounded shadow">
+    <h2 class="text-2xl font-bold mb-4">👤 Profil Bilgileri</h2>
+
+    <div class="space-y-2 text-gray-700">
+        <p><strong>Kullanıcı Adı:</strong> {{ user.username }}</p>
+        <p><strong>E-posta:</strong> {{
+user.email
+ or "-" }}</p>
+        <p><strong>Cinsiyet:</strong> {{ user.gender or "-" }}</p>
+        <p><strong>Prompt Puan Ortalaması:</strong> {{ average_score or "Hesaplanamadı" }}</p>
+    </div>
+
+    <div class="mt-6">
+        <h3 class="text-lg font-semibold mb-2">📝 Sohbet Geçmişi</h3>
+        {% if history %}
+            <ul class="space-y-2">
+                {% for chat in history %}
+                    <li class="border p-3 rounded bg-gray-50">
+                        <div><strong>Prompt:</strong> {{ chat.message }}</div>
+                        <div><strong>Cevap:</strong> {{ chat.response }}</div>
+                        <div class="text-sm text-gray-400">{{ chat.timestamp.strftime('%Y-%m-%d %H:%M') }}</div>
+                        {# Tek tek silme butonu kaldırıldı #}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <!-- İstersen burada sadece "Tüm Mesajları Sil" butonunu bırakabilirsin -->
+            <form method="post" action="/delete-all-chats" class="mt-4">
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                    Tüm Mesajları Sil
+                </button>
+            </form>
+        {% else %}
+            <p class="text-gray-500">Hiç sohbet geçmişiniz yok.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
