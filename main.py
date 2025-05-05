@@ -9,6 +9,7 @@ from database import SessionLocal
 from datetime import datetime
 import google.generativeai as genai
 import os, re, json
+from models import ChatHistory, User
 from dotenv import load_dotenv
 
 # ─────────────────────────────────────── Configuration
@@ -37,7 +38,7 @@ def prompt_onerileri(topic: str) -> list[str]:
 
 def sektor_sik_sorular(sektor: str) -> list[str]:
     p = (
-        f"“{sektor}” sektöründe en sık sorulan sadece **4 başlık** yaz. "
+        f"“{sektor}” sektöründe, yapay zekaya en sık sorulan sadece **4 başlık** yaz. "
         "Her başlık 3–5 kelime arasında, maddeleme veya numaralandırma olmadan."
     )
     out = _ask(p).split("\n")
@@ -47,40 +48,21 @@ def sektor_sik_sorular(sektor: str) -> list[str]:
     return ks
 
 def cevaptan_yeni_oneri(cevap: str) -> list[str]:
-    # 1) Cevaptaki ana başlıkları çıkar
-    analiz_prompt = (
-        "Aşağıdaki cevabı al, içindeki ana başlıkları madde madde listele.\n\n"
-        + cevap
+    # Modelin cevabına dair 6 yönlendirici soru üret
+    p = (
+        f"Yukarıdaki cevaba dayanarak, sırf kısa sorular olarak **6 yeni** "
+        "yönlendirici soru üret. Her soru 10 kelimeyi geçmesin."
     )
-    ana_basliklar = [
-        s.strip(" -•1234567890.") for s in _ask(analiz_prompt).split("\n") if s.strip()
-    ][:6]
-
-    # 2) Her bir başlık için derinleştirici soru üret, 25 kelimeye kırp
-    sorular = []
-    for baslik in ana_basliklar:
-        if len(sorular) >= 6: break
-        p = (
-            f"Prompt: \"{baslik}\" başlığını derinleştirici kısa bir soru sor. "
-            "En fazla 25 kelime olsun."
-        )
-        s = _ask(p).strip()
-        # 25 kelimeyi aşarsa kes ve "..." ekle
-        words = s.split()
-        if len(words) > 25:
-            s = " ".join(words[:25]) + "..."
-        if not s.endswith("?"):
-            s += "?"
-        sorular.append(s)
-
-    # 3) 6’ya tamamla
-    while len(sorular) < 6:
-        sorular.append("Bu konuda daha fazla detay verir misiniz?")
-    return sorular
-
+    out = _ask(p).split("\n")
+    # Sadece "?" ile biten gerçek soru cümlelerini alıyoruz
+    qs = [s.strip(" -•1234567890.") for s in out if s.strip().endswith("?")]
+    # Gerekirse eksikleri tamamla
+    if len(qs) < 6:
+        qs += ["Devam önerisi yok?"] * (6 - len(qs))
+    return qs[:6]
 
 def improve_prompt_text(text: str) -> str:
-    return _ask(f"Bu promptu daha net, kısa ve etkili hale getir:\n\n{text}")
+    return _ask(f"Şuanda bir promt denetleyicisisin. İki nokta işaretinden sonraki promt kullanıcının girdisi. Bu promtu yapay zeka modellerinin en iyi şekilde anlayacağı şekilde yaz. gerekirse detaylandır,başka bir şey yapma:\n\n{text}")
 
 def evaluate_prompt(text: str) -> tuple[int,str]:
     raw = _ask(
@@ -144,6 +126,21 @@ async def register(request: Request):
     finally:
         db.close()
 
+@app.post("/delete-all-chats")
+async def delete_all_chats(request: Request):
+    token = request.session.get("token")
+    payload = decode_token(token) if token else None
+    if not payload:
+        return RedirectResponse("/login", status_code=303)
+
+    user_id = payload.get("id")
+    db = SessionLocal()
+    db.query(ChatHistory).filter_by(user_id=user_id).delete()
+    db.commit()
+    db.close()
+
+    return RedirectResponse("/chat", status_code=303)
+
 @app.get("/chat", response_class=HTMLResponse)
 def chat_page(request: Request):
     token = request.session.get("token")
@@ -175,25 +172,32 @@ def topic_ornekleri(topic: str):
 @app.post("/api/chat")
 async def chat_api(request: Request):
     data = await request.json()
-    msg = data.get("message", "")
+    msg  = data.get("message", "")
+    tid  = data.get("thread_id")       # yeni alan
+
     resp = _ask(msg)
 
-    # sohbet kaydet
     token = request.session.get("token")
+    thread_id = None
     if token and decode_token(token):
-        save_chat(decode_token(token)["sub"], msg, resp)
+        username = decode_token(token)["sub"]
+        # burada tid None ise yeni thread; değilse aynı thread’e devam
+        thread_id = save_chat(username, msg, resp, thread_id=tid)
 
-    # yeni öneriler, puan, öneri
     yeni_oneriler = cevaptan_yeni_oneri(resp)
-    puan, oneri = evaluate_prompt(msg)
+    puan, oneri    = evaluate_prompt(msg)
 
     return JSONResponse({
-        "message":       msg,
-        "response":      resp,
+        "message":   msg,
+        "response":  resp,
+        "thread_id": thread_id,
         "yeni_oneriler": yeni_oneriler,
-        "score":         puan,
-        "suggestion":    oneri
+        "score":     puan,
+        "suggestion":oneri
     })
+
+
+
 
 @app.post("/prompt-iyilestir")
 async def prompt_iyilestir(mesaj: str = Form(...)):
@@ -206,3 +210,66 @@ async def prompt_iyilestir(mesaj: str = Form(...)):
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+@app.post("/delete-chat")
+async def delete_chat(request: Request):
+    form     = await request.form()
+    message  = form.get("message")
+    response = form.get("response")
+    token    = request.session.get("token")
+    payload  = decode_token(token) if token else None
+    if not payload:
+        return RedirectResponse("/login", status_code=303)
+
+    user_id = payload.get("id")
+    db = SessionLocal()
+    # message+response eşleşen ilk kaydı sil
+    chat = (
+        db.query(ChatHistory)
+          .filter_by(user_id=user_id, message=message, response=response)
+          .order_by(ChatHistory.timestamp.asc())
+          .first()
+    )
+    if chat:
+        db.delete(chat)
+        db.commit()
+    db.close()
+
+    return RedirectResponse("/chat", status_code=303)
+
+@app.get("/profile", response_class=HTMLResponse)
+def profile_page(request: Request):
+    token = request.session.get("token")
+    if not token or not decode_token(token):
+        return RedirectResponse("/login", status_code=303)
+
+    payload = decode_token(token)
+    username = payload["sub"]
+
+    db = SessionLocal()
+    user = db.query(User).filter_by(username=username).first()
+    # eğer user bulunamazsa güvenli bir redirect ekleyebilirsiniz
+
+    # Sohbet geçmişini çek
+    chats = (
+        db.query(ChatHistory)
+          .filter_by(user_id=user.id)
+          .order_by(ChatHistory.timestamp.asc())
+          .all()
+    )
+
+    # Ortalama prompt puanı hesapla
+    puanlar = []
+    for chat in chats:
+        if chat.response and chat.response.strip():
+            score, _ = evaluate_prompt(chat.message)
+            puanlar.append(score)
+    ortalama = sum(puanlar) / len(puanlar) if puanlar else 0
+
+    return templates.TemplateResponse("profile.html", {
+        "request":       request,
+        "user":          user,
+        "average_score": round(ortalama, 2),
+        "history":       chats
+    })
+

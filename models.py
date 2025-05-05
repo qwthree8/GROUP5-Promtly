@@ -25,8 +25,9 @@ class SessionToken(Base):
 class ChatHistory(Base):
     __tablename__ = "chat_history"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id        = Column(Integer, primary_key=True, index=True)
+    user_id   = Column(Integer, ForeignKey("users.id"), nullable=False)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
-    message = Column(String, nullable=False)
-    response = Column(String, nullable=False)
+    message   = Column(String, nullable=False)
+    response  = Column(String, nullable=False)
+    thread_id = Column(Integer, index=True, nullable=False)

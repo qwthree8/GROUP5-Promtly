@@ -55,20 +55,31 @@ def decode_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
         return None
 
 # --------- Chat history ---------
-def save_chat(username: str, user_message: str, bot_reply: str) -> bool:
+def save_chat(username: str, user_message: str, bot_reply: str, thread_id: int = None) -> int:
     session = SessionLocal()
     try:
         user = session.query(User).filter_by(username=username).first()
         if not user:
-            return False
-        chat = ChatHistory(user_id=user.id, message=user_message, response=bot_reply, timestamp=datetime.utcnow())
+            return None
+
+        chat = ChatHistory(
+            user_id   = user.id,
+            message   = user_message,
+            response  = bot_reply,
+            thread_id = thread_id or 0
+        )
         session.add(chat)
         session.commit()
-        return True
-    except Exception as e:
+        session.refresh(chat)
+
+        if not thread_id:
+            chat.thread_id = chat.id
+            session.commit()
+
+        return chat.thread_id
+    except Exception:
         session.rollback()
-        print("Chat kayıt hatası:", e)
-        return False
+        return None
     finally:
         session.close()
 

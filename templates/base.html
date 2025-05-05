@@ -1,11 +1,22 @@
-<!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}PromptlyAI{% endblock %}</title>
+
+  <!-- TailwindCSS + Typography plugin -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {} },
+      plugins: [require('@tailwindcss/typography')]
+    }
+  </script>
+
+  <!-- Marked.js for Markdown → HTML -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 flex flex-col">
@@ -13,27 +24,17 @@
   <!-- Navbar -->
   <nav class="bg-white shadow-md">
     <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-
-      <!-- Logo + Başlık -->
       <div class="flex items-center space-x-2">
-        <img
-          src="/static/images/logo-jam.png"
-          alt="PromptlyAI Logo"
-          class="navbar-logo"
-          style="height: 120px; width: auto;"
-        />
-        <a href="/" class="navbar-title">
-          PromptlyAI
-        </a>
+        <img src="/static/images/logo-jam.png" alt="PromptlyAI Logo" class="navbar-logo" style="height: 120px; width: auto;" />
+        <a href="/" class="navbar-title">PromptlyAI</a>
       </div>
-
       {% if request.session.token %}
       <div class="space-x-4">
         <a href="/chat" class="text-gray-700 hover:text-indigo-600 font-medium">Sohbet</a>
+        <a href="/profile" class="text-gray-700 hover:text-indigo-600 font-medium">Profil</a>
         <a href="/logout" class="text-red-600 hover:underline font-medium">Çıkış</a>
       </div>
       {% endif %}
-
     </div>
   </nav>
 
