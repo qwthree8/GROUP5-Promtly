@@ -1,3 +1,4 @@
+{# templates/chat.html #}
 {% extends "base.html" %}
 {% block title %}Sohbet | PromptlyAI{% endblock %}
 
@@ -5,10 +6,10 @@
 <div class="min-h-screen flex flex-col bg-gray-50">
   <!-- Başlık -->
   <header class="bg-white shadow py-6">
-    <h2 class="text-3xl font-extrabold text-center">Yapay Zekâ Asistanı</h2>
+    <h2 class="text-3xl font-extrabold text-center"></h2>
   </header>
 
-  <!-- Sektör & Örnek Soru / Konu Başlıkları -->
+  <!-- Sektör & Örnek / Konu Başlıkları -->
   <section class="bg-white border-b px-6 py-8 max-w-5xl mx-auto w-full">
     <form id="sektor-form" class="flex flex-col sm:flex-row gap-4 mb-6">
       <input
@@ -20,7 +21,7 @@
       <button type="submit" class="btn-primary">Örnekleri Getir</button>
     </form>
 
-    <!-- Örnek Soru Butonları (6 adet) -->
+    <!-- Örnek Soru Butonları -->
     <div id="soru-butons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"></div>
 
     <!-- Sık Sorulanlar -->
@@ -36,7 +37,6 @@
         {% for kt in initialTopics %}
         <button
           type="button"
-          data-color-index="{{ loop.index0 }}"
           onclick="loadTopic('{{ kt }}', {{ loop.index0 }})"
           class="w-full px-4 py-3 rounded-lg text-left font-bold text-white transition {{ colors[loop.index0] }}"
         >
@@ -50,18 +50,25 @@
   </section>
 
   <!-- Sohbet Geçmişi -->
-  <section id="chat-box"
-           class="flex-1 overflow-y-auto bg-gray-100 px-6 py-8 space-y-4 max-w-5xl mx-auto w-full"
-           style="max-height: 60vh;">
+  <section
+    id="chat-box"
+    class="flex-1 overflow-y-auto bg-gray-100 px-6 py-8 space-y-4 max-w-5xl mx-auto w-full"
+    style="max-height: 60vh;"
+  >
     {% for msg, res in history %}
     <div>
       <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> {{ msg }}</div>
-      <div class="bg-white p-3 rounded-lg shadow-sm mt-1"><strong>Bot:</strong> {{ res }}</div>
+      <div class="bg-white p-3 rounded-lg shadow-sm mt-1">
+        <strong>Bot:</strong>
+        <div class="mt-4 text-gray-800">
+          {{ res }}
+        </div>
+      </div>
     </div>
     {% endfor %}
   </section>
 
-  <!-- Yeni Mesaj & Prompt İyileştir -->
+  <!-- Yeni Mesaj & İyileştir -->
   <section class="bg-white border-t px-6 py-6 max-w-5xl mx-auto w-full space-y-4">
     <form id="chat-form" class="flex flex-col sm:flex-row gap-4">
       <input
@@ -71,23 +78,21 @@
         placeholder="Mesajınızı yazın..."
         class="flex-1 border border-gray-300 px-4 py-2 rounded-lg focus:ring-blue-500 focus:border-blue-500"
       />
-      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">Gönder</button>
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">
+        Gönder
+      </button>
     </form>
-
-    <button id="btn-improve"
-            class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition">
+    <button id="btn-improve" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition">
       ⚡ Promptu İyileştir
     </button>
-
-    <div id="puanlama-sonucu" class="text-gray-800 text-sm"></div>
+    <div id="puanlama-sonucu" class="text-gray-800 text-sm mb-4"></div>
     <div id="yeni-oneriler" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
   </section>
 </div>
 
 <script>
-  const chatBox = document.getElementById('chat-box');
-  const msgInput = document.getElementById('message-input');
-
+  const chatBox     = document.getElementById('chat-box');
+  const msgInput    = document.getElementById('message-input');
   const topicColors = [
     ['bg-[var(--topic-color-1)]','hover:bg-[var(--topic-hover-1)]'],
     ['bg-[var(--topic-color-2)]','hover:bg-[var(--topic-hover-2)]'],
@@ -98,94 +103,118 @@
   function scrollBottom(){
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
   }
-
   function selectQuestion(q){
     msgInput.value = q;
     msgInput.focus();
   }
 
-  async function loadTopic(topic, colorIndex){
-    const resp = await fetch(`/topic-ornekleri?topic=${encodeURIComponent(topic)}`);
-    const { sorular } = await resp.json();
-    renderQuestions(sorular, colorIndex);
+  // Bot cevabını paragraf bazlı formatla
+  function formatBotResponse(text){
+    const cleaned = text.replace(/\*\*/g,'').replace(/\*/g,'').trim();
+    const paras = cleaned.split(/\n{2,}/).filter(p=>p.trim());
+    if(!paras.length) return cleaned;
+    let html = `<div class="bot-title">💬 ${paras[0]}</div>`;
+    paras.slice(1).forEach((p,i)=>{
+      const emojis = ['🎯','✅','💡','🔍'];
+      html += `<p class="bot-sub">${emojis[i%emojis.length]} ${p.trim()}</p>`;
+    });
+    return html;
   }
 
-  function renderQuestions(list, colorIndex = null){
+  async function loadTopic(topic, idx){
+    const { sorular } = await fetch(`/topic-ornekleri?topic=${encodeURIComponent(topic)}`)
+                              .then(r=>r.json());
+    renderQuestions(sorular, idx);
+  }
+
+  function renderQuestions(list, idx=null){
     const cont = document.getElementById('soru-butons');
     cont.innerHTML = '';
-    list.slice(0,6).forEach(q => {
-      const btn = document.createElement('button');
-      let base = 'w-full px-4 py-3 rounded-lg text-sm text-left transition font-bold text-white';
-      if (colorIndex !== null && topicColors[colorIndex]) {
-        base += ' ' + topicColors[colorIndex].join(' ');
+    list.slice(0,6).forEach(q=>{
+      let cls = 'w-full px-4 py-3 rounded-lg font-bold transition ';
+      if(idx!==null){
+        cls += topicColors[idx].join(' ') + ' text-white';
       } else {
-        base += ' bg-gray-200 hover:bg-gray-300 text-black font-normal';
+        cls += 'bg-gray-200 hover:bg-gray-300 text-black font-normal';
       }
-      btn.className = base;
-      btn.textContent = q;
-      btn.onclick = () => selectQuestion(q);
+      const btn = document.createElement('button');
+      btn.className   = cls;
+      btn.textContent = q;    // **tam metin**
+      btn.title       = '';
+      btn.onclick     = ()=> selectQuestion(q);
       cont.appendChild(btn);
     });
   }
 
-  document.getElementById('sektor-form').addEventListener('submit', async e => {
+  document.getElementById('sektor-form').addEventListener('submit', async e=>{
     e.preventDefault();
     const sec = document.getElementById('sektor-input').value.trim();
-    if (!sec) return;
-    const r = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sec)}`);
-    const { sorular, konular } = await r.json();
-    renderQuestions(sorular, null);
-
+    if(!sec) return;
+    const { sorular, konular } = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sec)}`)
+                                    .then(r=>r.json());
+    renderQuestions(sorular,null);
     const kdiv = document.getElementById('konu-listesi');
     kdiv.innerHTML = '';
-    konular.forEach((kt,i) => {
-      const [bg, hover] = topicColors[i] || topicColors[0];
+    konular.forEach((kt,i)=>{
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `w-full px-4 py-3 rounded-lg text-left font-bold text-white transition ${bg} ${hover}`;
+      btn.type      = 'button';
+      btn.className = `w-full px-4 py-3 rounded-lg font-bold text-white transition ${topicColors[i].join(' ')}`;
       btn.textContent = kt;
-      btn.onclick = () => loadTopic(kt, i);
+      btn.onclick = ()=> loadTopic(kt,i);
       kdiv.appendChild(btn);
     });
   });
 
-  document.getElementById('chat-form').addEventListener('submit', async e => {
+  document.getElementById('chat-form').addEventListener('submit', async e=>{
     e.preventDefault();
-    const msg = msgInput.value.trim();
-    if (!msg) return;
-    const res = await fetch('/api/chat', {
+    const msg = msgInput.value.trim(); if(!msg) return;
+    const data = await fetch('/api/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({message: msg})
-    });
-    const data = await res.json();
-    chatBox.insertAdjacentHTML('beforeend', `
-      <div>
-        <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> ${data.message}</div>
-        <div class="bg-white p-3 rounded-lg shadow-sm mt-1"><strong>Bot:</strong> ${data.response}</div>
-      </div>`);
+      body:JSON.stringify({ message:msg })
+    }).then(r=>r.json());
+
+    // Kullanıcı mesajı
+    chatBox.insertAdjacentHTML('beforeend',`
+      <div><div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> ${data.message}</div></div>
+    `);
+
+    // Formatlı Bot cevabı
+    chatBox.insertAdjacentHTML('beforeend',`
+      <div class="mt-2 mb-4 p-3 bg-white rounded-lg shadow-sm">
+        <strong>Bot:</strong>
+        <div class="mt-2 text-gray-800">${formatBotResponse(data.response)}</div>
+      </div>
+    `);
+
     scrollBottom();
-    renderQuestions(data.yeni_oneriler, null);
-    msgInput.value = '';
-    msgInput.focus();
+    renderQuestions(data.yeni_oneriler,null);
+
+    // Puan & Öneri
+    document.getElementById('puanlama-sonucu').innerHTML = `
+      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+        <strong>Puan:</strong> ${data.score}/100<br>
+        <strong>Öneri:</strong> ${data.suggestion}
+      </div>
+    `;
+    msgInput.value=''; msgInput.focus();
   });
 
-  document.getElementById('btn-improve').addEventListener('click', async () => {
-    const text = msgInput.value.trim();
-    if (!text) return;
-    const resp = await fetch('/prompt-iyilestir', {
+  document.getElementById('btn-improve').addEventListener('click', async ()=>{
+    const t = msgInput.value.trim(); if(!t) return;
+    const j = await fetch('/prompt-iyilestir',{
       method:'POST',
       headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:new URLSearchParams({mesaj:text})
-    });
-    const j = await resp.json();
+      body:new URLSearchParams({ mesaj: t })
+    }).then(r=>r.json());
     msgInput.value = j.yeni;
     document.getElementById('puanlama-sonucu').innerHTML = `
       <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
         <strong>Puan:</strong> ${j.puan}/100<br>
         <strong>Öneri:</strong> ${j.oneri}
-      </div>`;
-    renderQuestions(j.yeni_oneriler, null);
+      </div>
+    `;
+    renderQuestions(j.yeni_oneriler,null);
     scrollBottom();
     msgInput.focus();
   });

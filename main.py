@@ -47,18 +47,37 @@ def sektor_sik_sorular(sektor: str) -> list[str]:
     return ks
 
 def cevaptan_yeni_oneri(cevap: str) -> list[str]:
-    # Modelin cevabına dair 6 yönlendirici soru üret
-    p = (
-        f"Yukarıdaki cevaba dayanarak, sırf kısa sorular olarak **6 yeni** "
-        "yönlendirici soru üret. Her soru 10 kelimeyi geçmesin."
+    # 1) Cevaptaki ana başlıkları çıkar
+    analiz_prompt = (
+        "Aşağıdaki cevabı al, içindeki ana başlıkları madde madde listele.\n\n"
+        + cevap
     )
-    out = _ask(p).split("\n")
-    # Sadece "?" ile biten gerçek soru cümlelerini alıyoruz
-    qs = [s.strip(" -•1234567890.") for s in out if s.strip().endswith("?")]
-    # Gerekirse eksikleri tamamla
-    if len(qs) < 6:
-        qs += ["Devam önerisi yok?"] * (6 - len(qs))
-    return qs[:6]
+    ana_basliklar = [
+        s.strip(" -•1234567890.") for s in _ask(analiz_prompt).split("\n") if s.strip()
+    ][:6]
+
+    # 2) Her bir başlık için derinleştirici soru üret, 25 kelimeye kırp
+    sorular = []
+    for baslik in ana_basliklar:
+        if len(sorular) >= 6: break
+        p = (
+            f"Prompt: \"{baslik}\" başlığını derinleştirici kısa bir soru sor. "
+            "En fazla 25 kelime olsun."
+        )
+        s = _ask(p).strip()
+        # 25 kelimeyi aşarsa kes ve "..." ekle
+        words = s.split()
+        if len(words) > 25:
+            s = " ".join(words[:25]) + "..."
+        if not s.endswith("?"):
+            s += "?"
+        sorular.append(s)
+
+    # 3) 6’ya tamamla
+    while len(sorular) < 6:
+        sorular.append("Bu konuda daha fazla detay verir misiniz?")
+    return sorular
+
 
 def improve_prompt_text(text: str) -> str:
     return _ask(f"Bu promptu daha net, kısa ve etkili hale getir:\n\n{text}")
@@ -85,7 +104,9 @@ templates.env.globals["now"] = datetime.utcnow
 # ─────────────────────────────────────── Routes
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return RedirectResponse("/login")
+    if "token" in request.session:
+        return RedirectResponse("/chat", status_code=303)
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
