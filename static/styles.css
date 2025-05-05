@@ -36,3 +36,14 @@ button:active {
   background-color: #cbd5e1;
   border-radius: 4px;
 }
+.navbar-title {
+  font-size: 2.25rem;
+  color: #17314b;
+  line-height: 2.5rem;
+  font-weight: 800;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.navbar-title:hover {
+  opacity: 0.8;
+}
