@@ -24,11 +24,10 @@ def _ask(prompt: str) -> str:
         return f"[HATA]: {e}"
 
 def prompt_onerileri(topic: str) -> list[str]:
-    # Ask for exactly 6 simple questions
     p = (
-        f"“{topic}” hakkında, sırf kısa sorular olarak, "
-        "numaralandırmadan ve maddelemeden, tam **6 soru** üret. "
-        "Her soru en fazla 15 kelime olsun."
+        f"“{topic}” mesleğini icra eden deneyimli bir profesyonele, "
+        "gerçek hayatta işe yarayacak, pratik ve doğrudan yanıtlar alabileceği "
+        "**6 tane o mesleği icra eden bir kişinin yapay zekaya sorabileceği bilgi alabileceği örnek promptlar** yaz.**ancak yazdığın örnek promptlarda * karakteri parantez içi ifadeler ve tırnak**("")** işaretleri olmasın."
     )
     out = _ask(p).split("\n")
     qs = [s.strip(" -•1234567890.") for s in out if s.strip()][:6]
@@ -37,10 +36,9 @@ def prompt_onerileri(topic: str) -> list[str]:
     return qs
 
 def sektor_sik_sorular(sektor: str) -> list[str]:
-    # Ask only for 4 short topic titles
     p = (
         f"“{sektor}” sektöründe en sık sorulan sadece **4 başlık** yaz. "
-        "Başlıklar 3–5 kelime arasında olsun, maddeleme veya numaralama yok."
+        "Her başlık 3–5 kelime arasında, maddeleme veya numaralandırma olmadan."
     )
     out = _ask(p).split("\n")
     ks = [s.strip(" -•1234567890.") for s in out if s.strip()][:4]
@@ -49,15 +47,18 @@ def sektor_sik_sorular(sektor: str) -> list[str]:
     return ks
 
 def cevaptan_yeni_oneri(cevap: str) -> list[str]:
+    # Modelin cevabına dair 6 yönlendirici soru üret
     p = (
-        f"Yukarıdaki cevaba dayanarak, sırf kısa sorular olarak **5 yeni** "
+        f"Yukarıdaki cevaba dayanarak, sırf kısa sorular olarak **6 yeni** "
         "yönlendirici soru üret. Her soru 10 kelimeyi geçmesin."
     )
     out = _ask(p).split("\n")
-    qs = [s.strip(" -•1234567890.") for s in out if s.strip()][:5]
-    if not qs:
-        qs = ["Devam önerisi yok"]
-    return qs
+    # Sadece "?" ile biten gerçek soru cümlelerini alıyoruz
+    qs = [s.strip(" -•1234567890.") for s in out if s.strip().endswith("?")]
+    # Gerekirse eksikleri tamamla
+    if len(qs) < 6:
+        qs += ["Devam önerisi yok?"] * (6 - len(qs))
+    return qs[:6]
 
 def improve_prompt_text(text: str) -> str:
     return _ask(f"Bu promptu daha net, kısa ve etkili hale getir:\n\n{text}")
@@ -129,11 +130,12 @@ def chat_page(request: Request):
         return RedirectResponse("/login", status_code=303)
     user = decode_token(token)["sub"]
     history = get_chat_history(user)
+    # İlk açılışta kesinlikle boş listeler gönderiyoruz
     return templates.TemplateResponse("chat.html", {
         "request": request,
         "history": history,
-        "initialTopics": sektor_sik_sorular(""),  # will show 4 placeholder topics
-        "initialQuestions": []                     # no prompts yet
+        "initialTopics": [],  # sektör girilene kadar gizli kalacak
+        "initialQuestions": []  # henüz öneri yok
     })
 
 @app.get("/sektor-ornekleri")
@@ -155,23 +157,21 @@ async def chat_api(request: Request):
     msg = data.get("message", "")
     resp = _ask(msg)
 
-    # 1) Sohbet geçmişine kaydet
+    # sohbet kaydet
     token = request.session.get("token")
     if token and decode_token(token):
         save_chat(decode_token(token)["sub"], msg, resp)
 
-    # 2) Yeni yönlendirici sorular
+    # yeni öneriler, puan, öneri
     yeni_oneriler = cevaptan_yeni_oneri(resp)
-
-    # 3) Prompt değerlendirme
     puan, oneri = evaluate_prompt(msg)
 
     return JSONResponse({
-        "message": msg,
-        "response": resp,
+        "message":       msg,
+        "response":      resp,
         "yeni_oneriler": yeni_oneriler,
-        "score": puan,
-        "suggestion": oneri
+        "score":         puan,
+        "suggestion":    oneri
     })
 
 @app.post("/prompt-iyilestir")

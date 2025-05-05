@@ -1,4 +1,19 @@
-/* static/styles.css */
+
+:root {
+  --topic-color-1: #E94136FF;
+  --topic-hover-1: #e94136;
+  --topic-color-2: #FAB805FF;
+  --topic-hover-2: #fab805;
+  --topic-color-3: #4383EEFF;
+  --topic-hover-3: #4383ee;
+  --topic-color-4: #35a450;
+  --topic-hover-4: #35a450;
+}
+
+
+.topic-btn-common {
+  @apply block w-full px-4 py-3 rounded-lg text-left font-medium transition;
+}
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -47,3 +62,40 @@ button:active {
 .navbar-title:hover {
   opacity: 0.8;
 }
+.btn-primary {
+  background-color: #e82e3f;
+  color: #FFFFFF;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #17314a;
+  color: #ffffff;
+}
+.topic-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  text-align: left;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.topic-btn {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;      /* px-4 py-3 eşdeğeri */
+  border-radius: 0.5rem;      /* rounded-lg */
+  text-align: left;
+  font-weight: 500;           /* font-medium */
+  transition: background-color 0.2s ease;
+}
+
+
+
+

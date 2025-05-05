@@ -1,4 +1,3 @@
-{# templates/chat.html #}
 {% extends "base.html" %}
 {% block title %}Sohbet | PromptlyAI{% endblock %}
 
@@ -9,7 +8,7 @@
     <h2 class="text-3xl font-extrabold text-center">Yapay Zekâ Asistanı</h2>
   </header>
 
-  <!-- Sektör ve Örnek Soru / Konu Başlıkları -->
+  <!-- Sektör & Örnek Soru / Konu Başlıkları -->
   <section class="bg-white border-b px-6 py-8 max-w-5xl mx-auto w-full">
     <form id="sektor-form" class="flex flex-col sm:flex-row gap-4 mb-6">
       <input
@@ -18,51 +17,51 @@
         placeholder="Sektör (örn: yazılımcı)"
         class="flex-1 border border-gray-300 px-4 py-2 rounded-lg focus:ring-purple-500 focus:border-purple-500"
       />
-      <button
-        type="submit"
-        class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg"
-      >
-        📌 Örnekleri Getir
-      </button>
+      <button type="submit" class="btn-primary">Örnekleri Getir</button>
     </form>
 
-    <!-- 6 Örnek Prompt Butonları -->
-    <div id="soru-butons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-      {% for q in initialQuestions %}
-        <button
-          class="w-full bg-gray-200 hover:bg-gray-300 px-4 py-3 rounded-lg whitespace-normal text-sm text-left"
-          onclick="selectQuestion('{{ q }}')"
-        >{{ q }}</button>
-      {% endfor %}
-    </div>
+    <!-- Örnek Soru Butonları (6 adet) -->
+    <div id="soru-butons" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"></div>
 
-    <!-- Sık Sorulanlar Başlığı -->
+    <!-- Sık Sorulanlar -->
     <p class="text-lg font-semibold mb-4">Sık Sorulanlar</p>
-    <div id="konu-listesi" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {% for kt in initialTopics %}
+    <div id="konu-listesi" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      {% if initialTopics %}
+        {% set colors = [
+          'bg-[var(--topic-color-1)] hover:bg-[var(--topic-hover-1)]',
+          'bg-[var(--topic-color-2)] hover:bg-[var(--topic-hover-2)]',
+          'bg-[var(--topic-color-3)] hover:bg-[var(--topic-hover-3)]',
+          'bg-[var(--topic-color-4)] hover:bg-[var(--topic-hover-4)]'
+        ] %}
+        {% for kt in initialTopics %}
         <button
-          class="w-full bg-yellow-100 hover:bg-yellow-200 px-4 py-3 rounded-lg text-left font-medium"
-          onclick="loadTopic('{{ kt }}')"
-        >{{ kt }}</button>
-      {% endfor %}
+          type="button"
+          data-color-index="{{ loop.index0 }}"
+          onclick="loadTopic('{{ kt }}', {{ loop.index0 }})"
+          class="w-full px-4 py-3 rounded-lg text-left font-bold text-white transition {{ colors[loop.index0] }}"
+        >
+          {{ kt }}
+        </button>
+        {% endfor %}
+      {% else %}
+        <p class="col-span-full text-gray-500 italic">Lütfen önce bir sektör giriniz.</p>
+      {% endif %}
     </div>
   </section>
 
-  <!-- Sohbet Kutusu (scrollable) -->
-  <section
-    id="chat-box"
-    class="flex-1 overflow-y-auto bg-gray-100 px-6 py-8 space-y-4 max-w-5xl mx-auto w-full"
-    style="max-height: 60vh;"
-  >
+  <!-- Sohbet Geçmişi -->
+  <section id="chat-box"
+           class="flex-1 overflow-y-auto bg-gray-100 px-6 py-8 space-y-4 max-w-5xl mx-auto w-full"
+           style="max-height: 60vh;">
     {% for msg, res in history %}
-      <div>
-        <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> {{ msg }}</div>
-        <div class="bg-white p-3 rounded-lg shadow-sm mt-1"><strong>Bot:</strong> {{ res }}</div>
-      </div>
+    <div>
+      <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> {{ msg }}</div>
+      <div class="bg-white p-3 rounded-lg shadow-sm mt-1"><strong>Bot:</strong> {{ res }}</div>
+    </div>
     {% endfor %}
   </section>
 
-  <!-- Yeni Mesaj & Puanlama -->
+  <!-- Yeni Mesaj & Prompt İyileştir -->
   <section class="bg-white border-t px-6 py-6 max-w-5xl mx-auto w-full space-y-4">
     <form id="chat-form" class="flex flex-col sm:flex-row gap-4">
       <input
@@ -72,21 +71,15 @@
         placeholder="Mesajınızı yazın..."
         class="flex-1 border border-gray-300 px-4 py-2 rounded-lg focus:ring-blue-500 focus:border-blue-500"
       />
-      <button
-        type="submit"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-      >Gönder</button>
+      <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition">Gönder</button>
     </form>
 
-    <button
-      id="btn-improve"
-      class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg"
-    >⚡ Promptu İyileştir</button>
+    <button id="btn-improve"
+            class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition">
+      ⚡ Promptu İyileştir
+    </button>
 
-    <!-- Prompt Puanlama ve Öneri -->
     <div id="puanlama-sonucu" class="text-gray-800 text-sm"></div>
-
-    <!-- Yeni Yönlendirici Sorular -->
     <div id="yeni-oneriler" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
   </section>
 </div>
@@ -94,29 +87,41 @@
 <script>
   const chatBox = document.getElementById('chat-box');
   const msgInput = document.getElementById('message-input');
-  const puanDiv  = document.getElementById('puanlama-sonucu');
 
-  function scrollBottom() {
+  const topicColors = [
+    ['bg-[var(--topic-color-1)]','hover:bg-[var(--topic-hover-1)]'],
+    ['bg-[var(--topic-color-2)]','hover:bg-[var(--topic-hover-2)]'],
+    ['bg-[var(--topic-color-3)]','hover:bg-[var(--topic-hover-3)]'],
+    ['bg-[var(--topic-color-4)]','hover:bg-[var(--topic-hover-4)]']
+  ];
+
+  function scrollBottom(){
     chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
   }
 
-  function selectQuestion(q) {
+  function selectQuestion(q){
     msgInput.value = q;
     msgInput.focus();
   }
 
-  async function loadTopic(topic) {
+  async function loadTopic(topic, colorIndex){
     const resp = await fetch(`/topic-ornekleri?topic=${encodeURIComponent(topic)}`);
     const { sorular } = await resp.json();
-    renderQuestions(sorular);
+    renderQuestions(sorular, colorIndex);
   }
 
-  function renderQuestions(list) {
+  function renderQuestions(list, colorIndex = null){
     const cont = document.getElementById('soru-butons');
     cont.innerHTML = '';
-    list.slice(0, 6).forEach(q => {
+    list.slice(0,6).forEach(q => {
       const btn = document.createElement('button');
-      btn.className = 'w-full bg-gray-200 hover:bg-gray-300 px-4 py-3 rounded-lg whitespace-normal text-sm text-left';
+      let base = 'w-full px-4 py-3 rounded-lg text-sm text-left transition font-bold text-white';
+      if (colorIndex !== null && topicColors[colorIndex]) {
+        base += ' ' + topicColors[colorIndex].join(' ');
+      } else {
+        base += ' bg-gray-200 hover:bg-gray-300 text-black font-normal';
+      }
+      btn.className = base;
       btn.textContent = q;
       btn.onclick = () => selectQuestion(q);
       cont.appendChild(btn);
@@ -129,14 +134,17 @@
     if (!sec) return;
     const r = await fetch(`/sektor-ornekleri?sektor=${encodeURIComponent(sec)}`);
     const { sorular, konular } = await r.json();
-    renderQuestions(sorular);
+    renderQuestions(sorular, null);
+
     const kdiv = document.getElementById('konu-listesi');
     kdiv.innerHTML = '';
-    konular.forEach(kt => {
+    konular.forEach((kt,i) => {
+      const [bg, hover] = topicColors[i] || topicColors[0];
       const btn = document.createElement('button');
-      btn.className = 'w-full bg-yellow-100 hover:bg-yellow-200 px-4 py-3 rounded-lg text-left font-medium';
+      btn.type = 'button';
+      btn.className = `w-full px-4 py-3 rounded-lg text-left font-bold text-white transition ${bg} ${hover}`;
       btn.textContent = kt;
-      btn.onclick = () => loadTopic(kt);
+      btn.onclick = () => loadTopic(kt, i);
       kdiv.appendChild(btn);
     });
   });
@@ -146,33 +154,18 @@
     const msg = msgInput.value.trim();
     if (!msg) return;
     const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({message: msg})
     });
     const data = await res.json();
-
-    // Mesaj ve cevap ekle
     chatBox.insertAdjacentHTML('beforeend', `
       <div>
         <div class="bg-blue-100 p-3 rounded-lg"><strong>Sen:</strong> ${data.message}</div>
         <div class="bg-white p-3 rounded-lg shadow-sm mt-1"><strong>Bot:</strong> ${data.response}</div>
-      </div>
-    `);
-
-    // Puanlama ve öneri göster
-    puanDiv.innerHTML = `
-      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg mt-2">
-        <strong>Puan:</strong> ${data.score}/100<br>
-        <strong>Öneri:</strong> ${data.suggestion}
-      </div>
-    `;
-
-    // Yeni yönlendirici sorular
-    renderQuestions(data.yeni_oneriler);
-
-    // Kaydır
+      </div>`);
     scrollBottom();
+    renderQuestions(data.yeni_oneriler, null);
     msgInput.value = '';
     msgInput.focus();
   });
@@ -181,26 +174,18 @@
     const text = msgInput.value.trim();
     if (!text) return;
     const resp = await fetch('/prompt-iyilestir', {
-      method: 'POST',
-      headers: {'Content-Type':'application/x-www-form-urlencoded'},
-      body: new URLSearchParams({mesaj: text})
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:new URLSearchParams({mesaj:text})
     });
     const j = await resp.json();
-
-    // Güncellenmiş prompt
     msgInput.value = j.yeni;
-
-    // Puanlama yenile
-    puanDiv.innerHTML = `
-      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg mt-2">
+    document.getElementById('puanlama-sonucu').innerHTML = `
+      <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
         <strong>Puan:</strong> ${j.puan}/100<br>
         <strong>Öneri:</strong> ${j.oneri}
-      </div>
-    `;
-
-    // Yeni öneriler
-    renderQuestions(j.yeni_oneriler);
-
+      </div>`;
+    renderQuestions(j.yeni_oneriler, null);
     scrollBottom();
     msgInput.focus();
   });
