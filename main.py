@@ -76,7 +76,7 @@ def cevaptan_yeni_oneri(cevap: str) -> list[str]:
 def improve_prompt_text(text: str) -> str:
     return _ask(f"Bu promptu daha net, kısa ve etkili hale getir:\n\n{text}")
     return _ask(
-        f"Şuanda bir promt denetleyicisisin.Kullanıcının metin kutusuna girdiği metni incele ve yapay zekaya gönderildiğinde en verimli cevap alınabilecek haline getir.Bu promtu yapay zeka modellerinin en iyi şekilde anlayacağı şekilde yaz. gerekirse detaylandır,başka bir şey yapma:\n\n{text}")
+        f"Şuanda bir promt denetleyicisisin.Kullanıcının metin kutusuna girdiği metni incele ve yapay zekaya gönderildiğinde en verimli cevap alınabilecek haline getir.Bu promtu yapay zeka modellerinin en iyi şekilde anlayacağı şekilde yaz. Detaylandırmayı unutma,başka bir şey yapma:\n\n{text}")
 def evaluate_prompt(text: str) -> tuple[int, str]:
     raw = _ask(
         "Aşağıdaki promptu 0–100 arasında puanla ve JSON olarak cevap ver:\n"
